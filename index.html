@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Veto de Mapas - Sudden Attack</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+
+    <script>
+      // SUAS CONFIGURAÇÕES DO FIREBASE AQUI
+      var firebaseConfig = {
+        apiKey: "AIzaSyDNKOe9l0sGsDiRoGcvFWESXb9oHO-qPOw", // SEU API KEY
+        authDomain: "vetodemapas.firebaseapp.com", // SEU AUTH DOMAIN
+        projectId: "vetodemapas", // SEU PROJECT ID
+        storageBucket: "vetodemapas.firebasestorage.app", // SEU STORAGE BUCKET
+        messagingSenderId: "264040626545", // SEU MESSAGING SENDER ID
+        appId: "1:264040626545:web:43bc16e2d57a78a5021ed0" // SEU APP ID
+      };
+
+      // Inicialize o Firebase
+      firebase.initializeApp(firebaseConfig);
+
+      // Referência global para o banco de dados Firestore
+      const db = firebase.firestore();
+    </script>
+
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -39,7 +61,7 @@
 
         <section id="links-section" class="card hidden">
             <h1>Links Gerados - Sessão <span id="sessionIdDisplay"></span></h1>
-            
+
             <div class="link-item">
                 <i class="fas fa-user-friends"></i>
                 <label for="teamALink">Equipe A</label>
@@ -69,7 +91,7 @@
                     <a href="#" target="_blank" class="open-link-btn" data-target="spectatorLink"><i class="fas fa-external-link-alt"></i></a>
                 </div>
             </div>
-            
+
             <button id="createNewSessionButton" class="btn secondary">Criar Nova Sessão</button>
         </section>
 

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Elementos da Seção da Equipe (Team Section)
     const teamNameDisplay = document.getElementById('teamNameDisplay');
-    const currentActionDisplay = document.getElementById('currentActionDisplay');
+    const currentActionDisplay = document.getElementById('currentActionDisplay'); // CORRIGIDO AQUI
     const availableMapsContainer = document.getElementById('availableMaps');
     const actionHistoryList = document.getElementById('actionHistory');
     const finalMapsList = document.getElementById('finalMapsList');
@@ -38,13 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const spectatorHistoryList = document.getElementById('spectatorHistory');
     const spectatorFinalMapsList = document.getElementById('spectatorFinalMaps');
 
-    // Variáveis de estado global (serão carregadas/salvas no localStorage)
+    // Variáveis de estado global (Firestore será a fonte de verdade)
     let selectedFormat = null;
     let currentSessionId = null;
     let currentRole = null; // 'master', 'teamA', 'teamB', 'spectator'
     let currentTeam = null; // 'teamA' ou 'teamB' se for uma interface de equipe
 
-    // **** ATENÇÃO: OBJETO MAP_IMAGES ATUALIZADO COM SEUS NOVOS MAPAS ****
+    // Variável para armazenar a função de unsubscribe do listener do Firestore
+    window.currentSessionUnsubscribe = null;
+
     const MAP_IMAGES = {
         "Airport": "img/Airport.png",
         "CrossPort": "img/CrossPort.png",
@@ -58,16 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
         "Provence": "img/Provence.png",
         "Western": "img/Western.png",
         "White Squall": "img/White Squall.png",
-        // Certifique-se que o nome do arquivo .png corresponde EXATAMENTE ao nome da chave aqui.
-        // Por exemplo, se seu arquivo é "Desert2.png", mude a chave para "Desert2".
-        // Se você não tiver uma imagem para algum desses mapas, crie um "placeholder.png" na pasta img/
     };
 
     // --- Funções Auxiliares ---
 
     /**
      * Gera um ID de sessão único e curto.
-     * @returns {string} O ID da sessão.
      */
     function generateSessionId() {
         return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -102,34 +100,72 @@ document.addEventListener('DOMContentLoaded', () => {
      * Redireciona para a página principal (limpando parâmetros da URL).
      */
     function goToHomePage() {
+        if (window.currentSessionUnsubscribe) {
+            window.currentSessionUnsubscribe();
+            window.currentSessionUnsubscribe = null;
+        }
         window.location.href = window.location.origin + window.location.pathname;
     }
 
     /**
      * Atualiza a UI com base no papel (role) e estado da sessão.
-     * @param {boolean} forceLinksDisplay Se true, vai direto para a tela de links. Usado após iniciar ou continuar.
+     * Esta função agora sempre tenta carregar do Firestore e gerencia os listeners.
+     * @param {boolean} forceLinksDisplay Se true, força a exibição dos links gerados (após criar nova sessão).
      */
-    function updateUI(forceLinksDisplay = false) {
-        hideAllSections(); // Esconde tudo primeiro
+    async function updateUI(forceLinksDisplay = false) {
+        hideAllSections();
 
         const params = getUrlParams();
         currentSessionId = params.session || null;
-        currentRole = params.role || 'master'; // 'master' é a tela inicial
+        currentRole = params.role || 'master';
 
-        const storedSession = localStorage.getItem('vetoSession');
-        let sessionData = storedSession ? JSON.parse(storedSession) : null;
+        let sessionData = null;
+        let sessionIdToLoad = currentSessionId;
+
+        // Se na tela master e sem ID na URL, tenta carregar o último ID conhecido do localStorage
+        if (currentRole === 'master' && !currentSessionId && localStorage.getItem('lastSessionId')) {
+            sessionIdToLoad = localStorage.getItem('lastSessionId');
+        }
+
+        // Se há um ID para carregar, tenta buscar a sessão no Firestore
+        if (sessionIdToLoad) {
+            try {
+                const docRef = db.collection('vetoSessions').doc(sessionIdToLoad);
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    sessionData = docSnap.data();
+                    currentSessionId = sessionIdToLoad; // Confirma o ID da sessão atual
+                } else {
+                    console.warn("Sessão não encontrada no Firestore:", sessionIdToLoad);
+                    localStorage.removeItem('lastSessionId'); // Limpa a referência local
+                    if (currentRole !== 'master') { // Se não é master, erro e redireciona
+                        alert('Sessão não encontrada ou expirada. Por favor, gere um novo link na página principal.');
+                        goToHomePage();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error("Erro ao carregar sessão do Firestore:", error);
+                alert("Ocorreu um erro ao carregar a sessão. Tente novamente.");
+                localStorage.removeItem('lastSessionId');
+                if (currentRole !== 'master') {
+                    goToHomePage();
+                    return;
+                }
+            }
+        }
 
         // Lógica para a tela principal ('master')
         if (currentRole === 'master') {
             if (sessionData && !forceLinksDisplay) {
-                // Existe sessão salva, mas não foi forçado a mostrar links (usuário abriu a página master)
+                // Se encontramos uma sessão (via lastSessionId ou URL) e não estamos forçando links, mostra a tela de continuar
                 currentSessionInfo.textContent = `Uma sessão MD${sessionData.format.slice(2)} (${sessionData.id}) está em andamento.`;
                 continueSessionSection.classList.remove('hidden');
             } else if (sessionData && forceLinksDisplay) {
-                // Sessão criada ou continuada, mostra os links
+                // Se a sessão foi criada/continuada e forçado o display de links
                 displayLinks(sessionData);
             } else {
-                // Nenhuma sessão ativa, mostra a tela de configuração
+                // Nenhuma sessão ativa para continuar, mostra a tela de configuração
                 setupSection.classList.remove('hidden');
                 resetSetupSection();
             }
@@ -137,20 +173,49 @@ document.addEventListener('DOMContentLoaded', () => {
         // Lógica para as interfaces de Equipe ou Espectador
         else {
             if (!sessionData || sessionData.id !== currentSessionId) {
-                // Sessão não encontrada ou ID da URL não corresponde - Redirecionar para home ou mostrar erro
                 alert('Sessão não encontrada ou expirada. Por favor, gere um novo link na página principal.');
                 goToHomePage();
                 return;
             }
 
-            // Garante que o sessionData está sempre atualizado para outras roles
-            sessionData = JSON.parse(localStorage.getItem('vetoSession'));
+            // Garante que o listener anterior seja removido antes de adicionar um novo.
+            if (window.currentSessionUnsubscribe) {
+                window.currentSessionUnsubscribe();
+                window.currentSessionUnsubscribe = null;
+            }
 
             if (currentRole === 'teamA' || currentRole === 'teamB') {
                 currentTeam = currentRole;
-                displayTeamInterface(sessionData, currentTeam);
+                displayTeamInterface(sessionData, currentTeam); // Passa sessionData
+                window.currentSessionUnsubscribe = db.collection('vetoSessions').doc(currentSessionId)
+                  .onSnapshot((doc) => {
+                      if (doc.exists) {
+                          const updatedSessionData = doc.data();
+                          displayTeamInterface(updatedSessionData, currentTeam); // Re-renderiza a UI com os dados atualizados
+                      } else {
+                          alert('Sessão foi encerrada ou removida. Redirecionando...');
+                          goToHomePage();
+                      }
+                  }, (error) => {
+                      console.error("Erro no listener da sessão para equipe:", error);
+                      alert("Erro de conexão com a sessão. Tente recarregar.");
+                  });
+
             } else if (currentRole === 'spectator') {
-                displaySpectatorInterface(sessionData);
+                displaySpectatorInterface(sessionData); // Passa sessionData
+                window.currentSessionUnsubscribe = db.collection('vetoSessions').doc(currentSessionId)
+                  .onSnapshot((doc) => {
+                      if (doc.exists) {
+                          const updatedSessionData = doc.data();
+                          displaySpectatorInterface(updatedSessionData); // Re-renderiza a UI com os dados atualizados
+                      } else {
+                          alert('Sessão foi encerrada ou removida. Redirecionando...');
+                          goToHomePage();
+                      }
+                  }, (error) => {
+                      console.error("Erro no listener da sessão para espectador:", error);
+                      alert("Erro de conexão com a sessão. Tente recarregar.");
+                  });
             }
         }
     }
@@ -216,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
         teamSection.classList.remove('hidden');
         teamNameDisplay.textContent = `Equipe ${team === 'teamA' ? 'A' : 'B'}`;
 
-        // Lógica de turno e mensagem
         let statusMessage = '';
         if (sessionData.currentTurn === 'finished') {
             statusMessage = 'Veto Finalizado!';
@@ -232,8 +296,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentActionDisplay.textContent = statusMessage;
 
         renderMapPool(sessionData, team);
-        renderHistory(sessionData.vetoHistory, actionHistoryList, true); // true para mostrar apenas histórico da equipe
-        renderFinalMaps(sessionData.pickedMaps, sessionData.format, finalMapsList);
+        renderHistory(sessionData.vetoHistory, actionHistoryList, true);
+        renderFinalMaps(sessionData.pickedMaps, sessionData.format, finalMapsList, sessionData); // Passa sessionData completa
     }
 
     /**
@@ -243,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function displaySpectatorInterface(sessionData) {
         spectatorSection.classList.remove('hidden');
 
-        // Lógica de status
         let statusMessage = '';
         if (sessionData.currentTurn === 'finished') {
             statusMessage = 'Veto Finalizado!';
@@ -255,8 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
         spectatorStatus.textContent = statusMessage;
 
         renderSpectatorMapPool(sessionData);
-        renderHistory(sessionData.vetoHistory, spectatorHistoryList, false); // false para mostrar histórico completo
-        renderFinalMaps(sessionData.pickedMaps, sessionData.format, spectatorFinalMapsList);
+        renderHistory(sessionData.vetoHistory, spectatorHistoryList, false);
+        renderFinalMaps(sessionData.pickedMaps, sessionData.format, spectatorFinalMapsList, sessionData); // Passa sessionData completa
     }
 
     /**
@@ -265,8 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} team A equipe atual ('teamA' ou 'teamB').
      */
     function renderMapPool(sessionData, team) {
-        availableMapsContainer.innerHTML = ''; // Limpa antes de renderizar
-        const isSessionFinished = sessionData.currentTurn === 'finished'; // Verifica uma vez fora do loop
+        availableMapsContainer.innerHTML = '';
+        const isSessionFinished = sessionData.currentTurn === 'finished';
 
         sessionData.maps.forEach(mapName => {
             const isBanned = sessionData.bannedMaps.includes(mapName);
@@ -277,7 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mapCard.classList.add('map-card');
             mapCard.dataset.mapName = mapName;
 
-            // Adiciona classes de estado para estilização
             if (isBanned) {
                 mapCard.classList.add('banned');
             } else if (isPicked) {
@@ -298,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const vetoButton = mapCard.querySelector('.veto-btn');
             const pickButton = mapCard.querySelector('.pick-btn');
 
-            // Habilita/Desabilita botões
             const isMyTurn = sessionData.currentTurn === team;
             const canVeto = isMyTurn && sessionData.nextAction === 'veto' && !isBanned && !isPicked;
             const canPick = isMyTurn && sessionData.nextAction === 'pick' && !isBanned && !isPicked;
@@ -306,24 +367,29 @@ document.addEventListener('DOMContentLoaded', () => {
             vetoButton.disabled = !canVeto || isSessionFinished;
             pickButton.disabled = !canPick || isSessionFinished;
 
-            // Adiciona event listeners APENAS se o botão estiver habilitado e a sessão não terminou
-            if (!isSessionFinished && !isBanned && !isPicked) { // Só permite interação com mapas não finalizados
+            // Para evitar múltiplos event listeners em re-renders, clonamos o nó e o substituímos.
+            // Isso remove todos os listeners antigos eficientemente.
+            const oldVetoButton = vetoButton;
+            const newVetoButton = oldVetoButton.cloneNode(true);
+            oldVetoButton.parentNode.replaceChild(newVetoButton, oldVetoButton);
+
+            const oldPickButton = pickButton;
+            const newPickButton = oldPickButton.cloneNode(true);
+            oldPickButton.parentNode.replaceChild(newPickButton, oldPickButton);
+
+
+            if (!isSessionFinished && !isBanned && !isPicked) {
                 if (canVeto) {
-                    // Remove listeners antigos para evitar duplicação em re-renders
-                    vetoButton.removeEventListener('click', () => handleMapAction(mapName, 'veto', team)); 
-                    vetoButton.addEventListener('click', () => handleMapAction(mapName, 'veto', team));
+                    newVetoButton.addEventListener('click', () => handleMapAction(mapName, 'veto', team));
                 }
                 if (canPick) {
-                    // Remove listeners antigos para evitar duplicação em re-renders
-                    pickButton.removeEventListener('click', () => handleMapAction(mapName, 'pick', team));
-                    pickButton.addEventListener('click', () => handleMapAction(mapName, 'pick', team));
+                    newPickButton.addEventListener('click', () => handleMapAction(mapName, 'pick', team));
                 }
             } else {
-                 // Se o mapa está banido/escolhido ou a sessão finalizou, esconde os botões de ação
-                 const actionsDiv = mapCard.querySelector('.actions');
-                 if (actionsDiv) {
-                    actionsDiv.style.display = 'none'; // Esconde a div de ações
-                 }
+                const actionsDiv = mapCard.querySelector('.actions');
+                if (actionsDiv) {
+                    actionsDiv.style.display = 'none';
+                }
             }
             
             availableMapsContainer.appendChild(mapCard);
@@ -355,9 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <img src="${MAP_IMAGES[mapName] || 'img/placeholder.png'}" alt="${mapName}">
                 <div class="map-name">${mapName}</div>
             `;
-            // Espectador não tem botões de ação
-            //mapCard.querySelector('.map-name').style.borderTop = 'none'; // Não é necessário se não há div de actions
-
             spectatorMapGrid.appendChild(mapCard);
         });
     }
@@ -369,16 +432,24 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} actionType 'veto' ou 'pick'.
      * @param {string} actingTeam A equipe realizando a ação ('teamA' ou 'teamB').
      */
-    function handleMapAction(mapName, actionType, actingTeam) {
-        // SEMPRE pega a versão mais recente do localStorage ao iniciar a ação
-        let sessionData = JSON.parse(localStorage.getItem('vetoSession'));
-
-        // Validação básica de turno e ação
-        if (!sessionData) {
-            alert('Erro: Sessão não encontrada. Por favor, recarregue a página principal.');
-            goToHomePage();
+    async function handleMapAction(mapName, actionType, actingTeam) {
+        let sessionData = null;
+        try {
+            const docRef = db.collection('vetoSessions').doc(currentSessionId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                sessionData = docSnap.data();
+            } else {
+                alert('Erro: Sessão não encontrada no Firestore para realizar a ação.');
+                goToHomePage();
+                return;
+            }
+        } catch (error) {
+            console.error("Erro ao carregar sessão do Firestore para handleMapAction:", error);
+            alert("Erro de conexão ao tentar realizar a ação. Tente recarregar.");
             return;
         }
+
         if (sessionData.currentTurn === 'finished') {
             alert('A sessão de veto já foi finalizada!');
             return;
@@ -396,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const newSessionData = { ...sessionData }; // Cria uma cópia para modificar
+        const newSessionData = { ...sessionData };
 
         if (actionType === 'veto') {
             newSessionData.bannedMaps.push(mapName);
@@ -405,26 +476,19 @@ document.addEventListener('DOMContentLoaded', () => {
             newSessionData.pickedMaps.push(mapName);
             newSessionData.vetoHistory.push({ team: actingTeam, map: mapName, action: 'pick', timestamp: new Date().toLocaleTimeString('pt-BR') });
 
-            // Incrementar contadores de pick para MD3/MD5 (manteremos, pode ser útil para outras lógicas)
             if (actingTeam === 'teamA') newSessionData.teamAPickCount++;
             else newSessionData.teamBPickCount++;
         }
 
-        // Lógica de transição de turno/ação baseada no formato
         processNextTurn(newSessionData);
 
-        localStorage.setItem('vetoSession', JSON.stringify(newSessionData));
-        
-        // Disparar o evento storage manualmente para forçar atualização imediata em todas as abas,
-        // pois o evento 'storage' só dispara se a mudança for feita por outra aba do mesmo domínio.
-        // Isso é crucial para sincronização em tempo real sem um backend.
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: 'vetoSession',
-            newValue: JSON.stringify(newSessionData),
-            oldValue: JSON.stringify(sessionData),
-            url: window.location.href,
-            storageArea: localStorage
-        }));
+        try {
+            await db.collection('vetoSessions').doc(currentSessionId).set(newSessionData);
+            console.log("Sessão atualizada no Firestore com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar sessão no Firestore:", error);
+            alert("Ocorreu um erro ao salvar sua ação. Tente novamente.");
+        }
     }
 
     /**
@@ -437,19 +501,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentBanned = sessionData.bannedMaps.length;
         const remainingMaps = sessionData.maps.filter(map => !sessionData.bannedMaps.includes(map) && !sessionData.pickedMaps.includes(map));
 
-        // MD1 Logic (no change)
+        // MD1 Logic
         if (sessionData.format === 'md1') {
-            const requiredActions = totalMaps - 1; // 11 vetos para 12 mapas
+            const requiredActions = totalMaps - 1;
 
             if (sessionData.vetoHistory.length < requiredActions) {
                 sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
                 sessionData.nextAction = 'veto';
             } else {
                 sessionData.finalMap = remainingMaps[0];
-                sessionData.currentTurn = 'finished'; // Marca como terminado
+                sessionData.currentTurn = 'finished';
             }
         }
-        // MD3 Logic (no change)
+        // MD3 Logic
         else if (sessionData.format === 'md3') {
             const totalActions = sessionData.vetoHistory.length;
             
@@ -463,16 +527,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 sessionData.currentTurn = 'teamB';
                 sessionData.nextAction = 'pick';
             } else if (totalActions === 4) { // B escolheu 1
-                // 2 vetos e 2 picks feitos. Agora vetos restantes até sobrar 1 para desempate
                 const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1; 
                 if (sessionData.bannedMaps.length < neededBansAfterPicks) {
-                    sessionData.currentTurn = 'teamA'; // Começa A vetando novamente
+                    sessionData.currentTurn = 'teamA';
                     sessionData.nextAction = 'veto';
                 } else {
                     sessionData.finalMap = remainingMaps[0];
                     sessionData.currentTurn = 'finished';
                 }
-            } else if (sessionData.currentTurn !== 'finished') { // Continua vetando após os picks iniciais
+            } else if (sessionData.currentTurn !== 'finished') {
                 const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1;
                 if (sessionData.bannedMaps.length < neededBansAfterPicks) {
                     sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
@@ -483,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        // MD5 Logic (UPDATED as requested)
+        // MD5 Logic (CORRIGIDA DE NOVO)
         else if (sessionData.format === 'md5') {
             const totalActionsSoFar = sessionData.vetoHistory.length;
 
@@ -520,26 +583,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionData.currentTurn = 'teamA';
                     sessionData.nextAction = 'pick';
                     break;
-                case 7: // 8ª Ação: Equipe B ESCOLHE (2ª de B)
-                    // Total de 8 ações concluídas (4 vetos e 4 picks).
-                    // Agora, fase de vetos alternados até sobrar 1 mapa para desempate.
-                    const totalVetosNeededMD5 = totalMaps - 5; // Precisamos de 5 mapas finais (4 picks + 1 tiebreaker)
-                    const currentVetosCount = sessionData.bannedMaps.length; // Já temos 4 vetos feitos
+                case 7:
+                     
+                    sessionData.currentTurn = 'teamB';
+                    sessionData.nextAction = 'pick'; 
+                 
 
-                    if (currentVetosCount < totalVetosNeededMD5) {
-                        sessionData.currentTurn = 'teamA'; // Inicia a fase de vetos alternados
-                        sessionData.nextAction = 'veto';
-                    } else {
-                        // Se não há mais vetos necessários, o mapa restante é o final
-                        sessionData.finalMap = remainingMaps[0];
-                        sessionData.currentTurn = 'finished';
-                    }
+                    
                     break;
-                default: // Ações a partir da 9ª: vetos alternados
-                    const currentTotalVetos = sessionData.bannedMaps.length;
-                    const totalVetosRequired = totalMaps - 5; // 5 mapas finais
-
-                    if (currentTotalVetos < totalVetosRequired) {
+                default: // Do 9º passo em diante, são apenas vetos alternados
+                    const finalBansRemaining = totalMaps - 5 - sessionData.bannedMaps.length;
+                    if (finalBansRemaining > 0) {
                         sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
                         sessionData.nextAction = 'veto';
                     } else {
@@ -550,19 +604,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Lógica de finalização genérica, caso falhe na lógica específica do formato
-        // Esta condição tenta capturar o final se a lógica de switch/case não o fez.
-        if (sessionData.currentTurn !== 'finished' && remainingMaps.length === 1 && 
-           ((sessionData.format === 'md1' && sessionData.pickedMaps.length === 0) || // MD1: 1 final map, 0 picks
-            (sessionData.format === 'md3' && sessionData.pickedMaps.length === 2) || // MD3: 1 final map, 2 picks
-            (sessionData.format === 'md5' && sessionData.pickedMaps.length === 4))) { // MD5: 1 final map, 4 picks
-            
-            sessionData.finalMap = remainingMaps[0];
-            sessionData.currentTurn = 'finished';
-        } else if (sessionData.currentTurn === 'finished') {
-            // Se já está marcado como finished, verificar se a contagem final está correta
-            const targetMapsCount = (sessionData.format === 'md1' ? 1 : (sessionData.format === 'md3' ? 3 : 5));
+        // Lógica de finalização genérica como fallback
+        // Verifica se sobrou apenas um mapa e se o número de picks esperados para o formato já foi atingido.
+        if (sessionData.currentTurn !== 'finished' && remainingMaps.length === 1) {
+            const expectedPicksForFormat = (sessionData.format === 'md1' ? 0 : (sessionData.format === 'md3' ? 2 : (sessionData.format === 'md5' ? 4 : 0)));
+            if (sessionData.pickedMaps.length === expectedPicksForFormat) {
+                sessionData.finalMap = remainingMaps[0];
+                sessionData.currentTurn = 'finished';
+            }
+        } 
+        
+        // Se a sessão está marcada como 'finished', verifica se a contagem final de mapas está correta.
+        if (sessionData.currentTurn === 'finished') {
             const finalMapsInState = sessionData.pickedMaps.length + (sessionData.finalMap ? 1 : 0);
+            const targetMapsCount = (sessionData.format === 'md1' ? 1 : (sessionData.format === 'md3' ? 3 : 5));
             if (finalMapsInState !== targetMapsCount) {
                  console.warn(`Veto finalizado, mas o número de mapas finais não corresponde ao formato (${finalMapsInState}/${targetMapsCount}). Verifique a lógica do formato.`);
             }
@@ -588,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
             listItem.innerHTML = `<i class="fas fa-${item.action === 'veto' ? 'ban' : 'check'}"></i> ${teamName} ${actionText} ${item.map} (${item.timestamp})`;
             listElement.appendChild(listItem);
         });
-        listElement.scrollTop = listElement.scrollHeight; // Rola para o final
+        listElement.scrollTop = listElement.scrollHeight;
     }
 
     /**
@@ -596,29 +651,22 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {Array<string>} pickedMaps Os mapas que foram escolhidos.
      * @param {string} format O formato da partida.
      * @param {HTMLElement} listElement O elemento UL onde os mapas finais serão renderizados.
+     * @param {object} sessionData A sessionData atual para verificar o estado de finalização.
      */
-    function renderFinalMaps(pickedMaps, format, listElement) {
+    function renderFinalMaps(pickedMaps, format, listElement, sessionData) { // Agora recebe sessionData
         listElement.innerHTML = '';
         
-        const sessionData = JSON.parse(localStorage.getItem('vetoSession'));
-        const finalMap = sessionData ? sessionData.finalMap : null;
+        const finalMap = sessionData ? sessionData.finalMap : null; // Usa sessionData recebida
 
         let mapsToShow = [...pickedMaps];
         if (finalMap && !pickedMaps.includes(finalMap)) {
             mapsToShow.push(finalMap);
         }
 
-        // Para MD1, o finalMap é o único mapa. Para MD3 e MD5, é o conjunto de pickedMaps + finalMap
         const targetMapsCount = (format === 'md1' ? 1 : (format === 'md3' ? 3 : 5));
         
-        if (mapsToShow.length === 0 && sessionData.currentTurn !== 'finished') {
-            listElement.innerHTML = '<li>Nenhum mapa final ainda.</li>';
-            return;
-        }
-
-        // Se a sessão está finalizada e o número de mapasToShow é o esperado, exibe-os.
+        // Somente exibe mapas finais se a sessão está finalizada E a contagem corresponde
         if (sessionData.currentTurn === 'finished' && mapsToShow.length === targetMapsCount) {
-            // Ordena os mapas finais para consistência visual
             mapsToShow.sort();
 
             mapsToShow.forEach(mapName => {
@@ -649,15 +697,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 2. Iniciar Veto (Cria uma Nova Sessão)
-    startButton.addEventListener('click', () => {
+    // 2. Iniciar Veto (Cria uma Nova Sessão no Firestore)
+    startButton.addEventListener('click', async () => {
         if (!selectedFormat) {
             alert('Por favor, selecione um formato de partida (MD1, MD3 ou MD5).');
             return;
         }
 
-        currentSessionId = generateSessionId();
-        // **** SUA NOVA LISTA DE MAPAS ****
+        const newSessionRef = db.collection('vetoSessions').doc();
+        currentSessionId = newSessionRef.id;
+
         const mapsPool = [
             "Airport", "CrossPort", "City Cat", "Depot", "Desert 2", "DragonRoad", 
             "5th Depot", "Frozen", "Old Town", "Provence", "Western", "White Squall"
@@ -666,19 +715,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const sessionData = {
             id: currentSessionId,
             format: selectedFormat,
-            maps: mapsPool, // Lista completa de mapas
+            maps: mapsPool,
             bannedMaps: [],
             pickedMaps: [],
-            finalMap: null, // O mapa que sobra no MD1 ou o desempate
+            finalMap: null,
             vetoHistory: [],
-            currentTurn: 'teamA', // Equipe que começa
-            nextAction: 'veto', // 'veto' ou 'pick'
+            currentTurn: 'teamA',
+            nextAction: 'veto',
             teamAPickCount: 0,
             teamBPickCount: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        localStorage.setItem('vetoSession', JSON.stringify(sessionData));
-        updateUI(true); // Força a exibição dos links após criar nova sessão
+        try {
+            await newSessionRef.set(sessionData);
+            console.log("Nova sessão criada no Firestore com ID:", currentSessionId);
+            localStorage.setItem('lastSessionId', currentSessionId); // Apenas guarda o ID para "continuar sessão"
+            updateUI(true); // Força a exibição dos links
+        } catch (error) {
+            console.error("Erro ao criar nova sessão no Firestore:", error);
+            alert("Não foi possível iniciar a sessão. Tente novamente.");
+        }
     });
 
     // 3. Copiar Links
@@ -690,55 +747,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 4. Criar Nova Sessão (Botão de Reset da tela de Links Gerados)
-    createNewSessionButton.addEventListener('click', () => {
+    createNewSessionButton.addEventListener('click', async () => {
         if (confirm('Tem certeza que deseja criar uma nova sessão? A sessão atual será perdida.')) {
-            localStorage.removeItem('vetoSession'); // Limpa os dados da sessão
-            goToHomePage(); // Redireciona para a home limpa
+            if (currentSessionId) {
+                try {
+                    await db.collection('vetoSessions').doc(currentSessionId).delete();
+                    console.log("Sessão ativa deletada do Firestore:", currentSessionId);
+                } catch (error) {
+                    console.error("Erro ao deletar sessão ativa do Firestore:", error);
+                }
+            }
+            localStorage.removeItem('lastSessionId'); // Limpa a referência local da última sessão
+            goToHomePage();
         }
     });
 
-    // 5. Botões da tela de continuação
+    // 5. Botões da tela de continuação (Carregam do Firestore)
     if (continueSessionButton) {
         continueSessionButton.addEventListener('click', () => {
-            updateUI(true); // Continua para a sessão existente e mostra os links
+            const lastSessionId = localStorage.getItem('lastSessionId');
+            if (lastSessionId) {
+                // Redireciona para a URL com o ID da última sessão para carregar via updateUI
+                window.location.href = `${window.location.origin}${window.location.pathname}?session=${lastSessionId}&role=master`;
+            } else {
+                alert('Nenhuma sessão anterior encontrada para continuar.');
+                updateUI(false);
+            }
         });
     }
 
     if (startNewSessionButton) {
-        startNewSessionButton.addEventListener('click', () => {
+        startNewSessionButton.addEventListener('click', async () => {
             if (confirm('Tem certeza que deseja iniciar uma nova sessão? A sessão atual será perdida.')) {
-                localStorage.removeItem('vetoSession'); // Limpa a sessão existente
-                goToHomePage(); // Redireciona para a home limpa
+                const lastSessionId = localStorage.getItem('lastSessionId');
+                if (lastSessionId) {
+                    try {
+                        await db.collection('vetoSessions').doc(lastSessionId).delete();
+                        console.log("Sessão antiga (última) deletada do Firestore:", lastSessionId);
+                    } catch (error) {
+                        console.error("Erro ao deletar sessão antiga (última) do Firestore:", error);
+                    }
+                }
+                localStorage.removeItem('lastSessionId');
+                goToHomePage();
             }
         });
     }
 
     // --- Inicialização ---
-    // Este ponto de entrada determina qual interface mostrar ao carregar a página
-    updateUI(false); // Não força a exibição dos links na carga inicial, permite ver a tela de continuar
-    
-    // Escuta mudanças no localStorage de outras abas/janelas para sincronização
-    window.addEventListener('storage', (event) => {
-        if (event.key === 'vetoSession' || event.key === null) { // key === null para qualquer mudança
-            console.log('Dados da sessão atualizados em outra aba, atualizando UI...');
-            // Quando a página é atualizada por 'storage', precisamos buscar o novo estado e renderizar
-            const sessionData = JSON.parse(localStorage.getItem('vetoSession'));
-            if (sessionData) {
-                if (currentRole === 'teamA' || currentRole === 'teamB') {
-                    displayTeamInterface(sessionData, currentTeam);
-                } else if (currentRole === 'spectator') {
-                    displaySpectatorInterface(sessionData);
-                } else if (currentRole === 'master') {
-                    updateUI(false); // Atualiza a tela master para refletir a sessão
-                }
-            } else {
-                 // Sessão foi limpa em outra aba, volte para a home
-                 if (currentRole !== 'master') { // Se não estiver na home, redirecione
-                    goToHomePage();
-                 } else { // Se já estiver na home, apenas resete a UI
-                     updateUI(false);
-                 }
-            }
-        }
-    });
+    updateUI(false);
 });
