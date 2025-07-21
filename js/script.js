@@ -74,6 +74,114 @@ document.addEventListener('DOMContentLoaded', () => {
         "White Squall": "img/White Squall.png",
     };
 
+    /**
+ * Exibe o overlay amigável de mapas finais.
+ */
+function showFinalOverlay(sessionData) {
+  const overlay   = document.getElementById('finalOverlay');
+  const container = document.getElementById('overlayTeamsContainer');
+  container.innerHTML = '';
+
+  // pega só os mapas pickados
+  const picks = sessionData.vetoHistory.filter(i => i.action === 'pick');
+
+  // cria o grid horizontal
+  const grid = document.createElement('div');
+  grid.classList.add('overlay-map-grid');
+
+  // 1) os picks, com nome da equipe acima
+  picks.forEach(p => {
+    const teamName = p.team === 'teamA' ? 'Equipe A' : 'Equipe B';
+    const card = document.createElement('div');
+    card.classList.add('overlay-map-item');
+
+    // título da equipe
+    const title = document.createElement('div');
+    title.classList.add('overlay-map-title');
+    title.textContent = teamName;
+    card.append(title);
+
+    // imagem e legenda
+    const img = document.createElement('img');
+    img.src = MAP_IMAGES[p.map] || 'img/placeholder.png';
+    img.alt = p.map;
+    const caption = document.createElement('span');
+    caption.textContent = p.map;
+    card.append(img, caption);
+
+    grid.append(card);
+  });
+
+  // 2) se houver finalMap e ele não estiver entre os picks, adiciona sem equipe
+  if (sessionData.finalMap && !picks.some(p => p.map === sessionData.finalMap)) {
+    const card = document.createElement('div');
+    card.classList.add('overlay-map-item');
+
+    // placeholder em branco para alinhar
+    const placeholder = document.createElement('div');
+    placeholder.classList.add('overlay-map-title');
+    placeholder.textContent = 'Desempate';
+    card.append(placeholder);
+
+    const img = document.createElement('img');
+    img.src = MAP_IMAGES[sessionData.finalMap] || 'img/placeholder.png';
+    img.alt = sessionData.finalMap;
+    const caption = document.createElement('span');
+    caption.textContent = sessionData.finalMap;
+    card.append(img, caption);
+
+    grid.append(card);
+  }
+
+  container.append(grid);
+  overlay.classList.remove('hidden');
+
+
+   // re‑registrar o listener de fechar
+  const btn = document.getElementById('closeOverlay');
+  if (btn) {
+    btn.onclick = () => {
+      overlay.classList.add('hidden');
+    };
+  }
+
+}
+
+/**
+ * Cria o elemento <div> de um card de mapa (imagem + legenda).
+ */
+function buildMapCard(mapName) {
+  const item = document.createElement('div');
+  item.classList.add('overlay-map-item');
+  const img = document.createElement('img');
+  img.src = MAP_IMAGES[mapName] || 'img/placeholder.png';
+  img.alt = mapName;
+  const caption = document.createElement('span');
+  caption.textContent = mapName;
+  item.append(img, caption);
+  return item;
+}
+
+// Fecha o overlay ao clicar no botão
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('closeOverlay')
+    .addEventListener('click', () => {
+      document.getElementById('finalOverlay')
+        .classList.add('hidden');
+    });
+});
+
+/**
+ * Verifica se a sessão terminou e dispara o overlay.
+ * Chamar esta função no final de displayTeamInterface e displaySpectatorInterface.
+ */
+function checkSessionEndAndShowOverlay(sessionData) {
+  if (sessionData.currentTurn === 'finished') {
+    showFinalOverlay(sessionData);
+  }
+}
+
+
     // --- Funções Auxiliares ---
 
     /**
@@ -310,6 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMapPool(sessionData, team);
         renderHistory(sessionData.vetoHistory, actionHistoryList, true);
         renderFinalMaps(sessionData.pickedMaps, sessionData.format, finalMapsList, sessionData); // Passa sessionData completa
+        checkSessionEndAndShowOverlay(sessionData);
+    
     }
 
     /**
@@ -332,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSpectatorMapPool(sessionData);
         renderHistory(sessionData.vetoHistory, spectatorHistoryList, false);
         renderFinalMaps(sessionData.pickedMaps, sessionData.format, spectatorFinalMapsList, sessionData); // Passa sessionData completa
+        checkSessionEndAndShowOverlay(sessionData);
     }
 
     /**
