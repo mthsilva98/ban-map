@@ -1,3 +1,15 @@
+/**
+ * Gera um código aleatório de 5 caracteres (A–Z, 0–9)
+ */
+function generateSessionId(length = 5) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let id = '';
+  for (let i = 0; i < length; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Referências aos elementos HTML principais
     const setupSection = document.getElementById('setup-section');
@@ -123,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let sessionIdToLoad = currentSessionId;
 
         // Se na tela master e sem ID na URL, tenta carregar o último ID conhecido do localStorage
-        if (currentRole === 'master' && !currentSessionId && localStorage.getItem('lastSessionId')) {
-            sessionIdToLoad = localStorage.getItem('lastSessionId');
+        if (currentRole === 'master' && !currentSessionId && sessionStorage.getItem('lastSessionId')) {
+            sessionIdToLoad = sessionStorage.getItem('lastSessionId');
         }
 
         // Se há um ID para carregar, tenta buscar a sessão no Firestore
@@ -137,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentSessionId = sessionIdToLoad; // Confirma o ID da sessão atual
                 } else {
                     console.warn("Sessão não encontrada no Firestore:", sessionIdToLoad);
-                    localStorage.removeItem('lastSessionId'); // Limpa a referência local
+                    sessionStorage.removeItem('lastSessionId'); // Limpa a referência local
                     if (currentRole !== 'master') { // Se não é master, erro e redireciona
                         alert('Sessão não encontrada ou expirada. Por favor, gere um novo link na página principal.');
                         goToHomePage();
@@ -147,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error("Erro ao carregar sessão do Firestore:", error);
                 alert("Ocorreu um erro ao carregar a sessão. Tente novamente.");
-                localStorage.removeItem('lastSessionId');
+                sessionStorage.removeItem('lastSessionId');
                 if (currentRole !== 'master') {
                     goToHomePage();
                     return;
@@ -481,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         processNextTurn(newSessionData);
-
+           
         try {
             await db.collection('vetoSessions').doc(currentSessionId).set(newSessionData);
             console.log("Sessão atualizada no Firestore com sucesso!");
@@ -614,14 +626,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } 
         
-        // Se a sessão está marcada como 'finished', verifica se a contagem final de mapas está correta.
         if (sessionData.currentTurn === 'finished') {
             const finalMapsInState = sessionData.pickedMaps.length + (sessionData.finalMap ? 1 : 0);
-            const targetMapsCount = (sessionData.format === 'md1' ? 1 : (sessionData.format === 'md3' ? 3 : 5));
+            const targetMapsCount = (sessionData.format === 'md1' ? 1
+                                     : (sessionData.format === 'md3' ? 3 : 5));
             if (finalMapsInState !== targetMapsCount) {
-                 console.warn(`Veto finalizado, mas o número de mapas finais não corresponde ao formato (${finalMapsInState}/${targetMapsCount}). Verifique a lógica do formato.`);
+                console.warn(`Veto finalizado, mas número de mapas finais inesperado (${finalMapsInState}/${targetMapsCount}).`);
             }
-        }
+
+            // 1. Limpa o lastSessionId do localStorage
+            sessionStorage.removeItem('lastSessionId');
+
+            // 2. Se for o master, avisa e volta para a tela de setup
+            if (currentRole === 'master') {
+                alert('🟢 Partida concluída! Você pode iniciar uma nova.');
+                updateUI(false);
+            }
+  }
     }
 
 
@@ -704,8 +725,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const newSessionRef = db.collection('vetoSessions').doc();
-        currentSessionId = newSessionRef.id;
+
+            let sessionId, newSessionRef, exists;
+            do {
+         sessionId = generateSessionId();
+         newSessionRef = db.collection('vetoSessions').doc(sessionId);
+            const snap = await newSessionRef.get();
+            exists = snap.exists;
+         } while (exists);
+            currentSessionId = sessionId;
+       
 
         const mapsPool = [
             "Airport", "CrossPort", "City Cat", "Depot", "Desert 2", "DragonRoad", 
@@ -729,8 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await newSessionRef.set(sessionData);
-            console.log("Nova sessão criada no Firestore com ID:", currentSessionId);
-            localStorage.setItem('lastSessionId', currentSessionId); // Apenas guarda o ID para "continuar sessão"
+            sessionStorage.setItem('lastSessionId', currentSessionId); // Apenas guarda o ID para "continuar sessão"
             updateUI(true); // Força a exibição dos links
         } catch (error) {
             console.error("Erro ao criar nova sessão no Firestore:", error);
@@ -757,7 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error("Erro ao deletar sessão ativa do Firestore:", error);
                 }
             }
-            localStorage.removeItem('lastSessionId'); // Limpa a referência local da última sessão
+            sessionStorage.removeItem('lastSessionId'); // Limpa a referência local da última sessão
             goToHomePage();
         }
     });
@@ -765,21 +793,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Botões da tela de continuação (Carregam do Firestore)
     if (continueSessionButton) {
         continueSessionButton.addEventListener('click', () => {
-            const lastSessionId = localStorage.getItem('lastSessionId');
-            if (lastSessionId) {
-                // Redireciona para a URL com o ID da última sessão para carregar via updateUI
-                window.location.href = `${window.location.origin}${window.location.pathname}?session=${lastSessionId}&role=master`;
-            } else {
-                alert('Nenhuma sessão anterior encontrada para continuar.');
-                updateUI(false);
-            }
-        });
+    const lastSessionId = sessionStorage.getItem('lastSessionId');
+    if (!lastSessionId) {
+        alert('Nenhuma sessão anterior encontrada para continuar.');
+        return;
+    }
+    // atualiza a variável global e já exibe a tela de links:
+    currentSessionId = lastSessionId;
+    updateUI(true);
+});
     }
 
     if (startNewSessionButton) {
         startNewSessionButton.addEventListener('click', async () => {
             if (confirm('Tem certeza que deseja iniciar uma nova sessão? A sessão atual será perdida.')) {
-                const lastSessionId = localStorage.getItem('lastSessionId');
+                const lastSessionId = sessionStorage.getItem('lastSessionId');
                 if (lastSessionId) {
                     try {
                         await db.collection('vetoSessions').doc(lastSessionId).delete();
@@ -788,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.error("Erro ao deletar sessão antiga (última) do Firestore:", error);
                     }
                 }
-                localStorage.removeItem('lastSessionId');
+                sessionStorage.removeItem('lastSessionId');
                 goToHomePage();
             }
         });
