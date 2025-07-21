@@ -1,0 +1,663 @@
+/* Globais e Reset Básico */
+:root {
+    --primary-blue: #1a73e8; /* Exemplo de um azul vibrante */
+    --dark-blue: #1a2a4f;
+    --darker-blue: #0f1a30;
+    --card-bg: #2d3851;
+    --text-color: #e0e0e0;
+    --text-light: #f0f0f0;
+    --border-color: #4a5a7b;
+    --red-veto: #e74c3c;
+    --green-pick: #2ecc71;
+    --button-hover-darken: brightness(0.9); /* Para efeito de hover */
+
+    /* Variáveis RGB para uso com rgba() no JS ou CSS */
+    --red-veto-rgb: 231, 76, 60;
+    --green-pick-rgb: 46, 204, 113;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, var(--dark-blue) 0%, var(--darker-blue) 100%);
+    color: var(--text-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Cabeçalho */
+.main-header {
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.logo {
+    max-width: 250px; /* Ajuste conforme o tamanho real do logo */
+    height: auto;
+    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+}
+
+/* Conteúdo Principal e Cards */
+.main-content {
+    width: 100%;
+    max-width: 800px; /* Padrão para as telas iniciais */
+    display: flex;
+    flex-direction: column;
+    gap: 30px; /* Espaço entre os cards se houver mais de um */
+}
+
+/* Ajuste de largura máxima para as interfaces de veto/espectador */
+body:has(#team-section:not(.hidden)) .main-content,
+body:has(#spectator-section:not(.hidden)) .main-content {
+    max-width: 1200px; /* Mais largo para o layout de 2 colunas */
+}
+
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.card h1 {
+    font-size: 2.2em;
+    margin-bottom: 10px;
+    color: var(--text-light);
+}
+
+.card p {
+    font-size: 1.1em;
+    margin-bottom: 30px;
+    opacity: 0.8;
+}
+
+/* Seleção de Formato */
+.format-selection h2 {
+    font-size: 1.6em;
+    margin-bottom: 25px;
+    color: var(--text-light);
+}
+
+.format-options {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-bottom: 40px;
+    flex-wrap: wrap; /* Para responsividade */
+}
+
+.format-card {
+    background-color: var(--darker-blue);
+    border: 2px solid transparent; /* Bordas transparentes por padrão */
+    border-radius: 8px;
+    padding: 25px 35px;
+    width: 200px; /* Largura fixa para os cards */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 150px; /* Altura mínima para padronizar */
+}
+
+.format-card h3 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+    color: var(--text-light);
+}
+
+.format-card p {
+    font-size: 0.9em;
+    margin-bottom: 0; /* Remover margin-bottom do p dentro do card */
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+.format-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.format-card.selected {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 20px rgba(26, 115, 232, 0.5); /* Sombra mais intensa para selecionado */
+    transform: scale(1.02);
+}
+
+/* Botões */
+.btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-decoration: none; /* Para botões que são links */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn.primary {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.btn.primary:hover:not(:disabled) {
+    background-color: var(--dark-blue); /* Ou um tom ligeiramente mais escuro de azul */
+    transform: translateY(-2px);
+}
+
+.btn.secondary {
+    background-color: var(--border-color);
+    color: var(--text-light);
+}
+
+.btn.secondary:hover:not(:disabled) {
+    background-color: var(--darker-blue);
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Seção de Links Gerados */
+#links-section {
+    text-align: left; /* Alinhar o conteúdo dentro do card à esquerda */
+    padding: 40px;
+}
+
+#links-section h1 {
+    text-align: center; /* Manter o título centralizado */
+    margin-bottom: 30px;
+}
+
+.link-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+    gap: 15px;
+    flex-wrap: wrap; /* Para responsividade */
+}
+
+.link-item i {
+    font-size: 1.8em;
+    color: var(--primary-blue);
+    min-width: 30px; /* Garante que o ícone tenha um espaço mínimo */
+}
+
+.link-item label {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: var(--text-light);
+    flex-basis: 100px; /* Largura base para o label */
+    flex-shrink: 0; /* Não encolher o label */
+}
+
+.link-input-group {
+    flex-grow: 1; /* Faz o grupo de input e botões ocupar o espaço restante */
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.link-input-group input[type="text"] {
+    flex-grow: 1;
+    background-color: var(--darker-blue);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px 15px;
+    color: var(--text-light);
+    font-size: 0.95em;
+    cursor: text;
+    white-space: nowrap; /* Evita que o texto quebre */
+    overflow: hidden; /* Oculta o texto que excede */
+    text-overflow: ellipsis; /* Adiciona '...' ao texto oculto */
+}
+
+.link-input-group button,
+.link-input-group .open-link-btn {
+    background-color: var(--border-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: 6px;
+    padding: 12px 15px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.link-input-group button:hover,
+.link-input-group .open-link-btn:hover {
+    background-color: var(--primary-blue);
+    transform: translateY(-1px);
+}
+
+.link-input-group button i,
+.link-input-group .open-link-btn i {
+    font-size: 1.1em;
+    color: var(--text-light); /* Para que os ícones fiquem brancos */
+}
+
+/* Para a nova seção de continuar sessão */
+#continue-session-section .button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+#continue-session-section p {
+    margin-bottom: 0; /* Ajuste para o parágrafo da info da sessão */
+}
+
+
+/* --- Estilos para as Interfaces de Equipe e Espectador --- */
+
+.team-interface, .spectator-interface {
+    width: 100%; /* Ajustado via main-content max-width */
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    text-align: center; /* Centraliza o título principal */
+}
+
+.team-interface h1, .spectator-interface h1 {
+    font-size: 2.5em;
+    color: var(--text-light);
+    margin-bottom: 15px;
+}
+
+.team-interface p, .spectator-interface p {
+    font-size: 1.2em;
+    color: var(--text-color);
+    margin-bottom: 30px;
+    font-weight: bold;
+}
+
+.team-interface-content, .spectator-content {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start; /* Alinha o topo dos containers */
+}
+
+.map-pool-container, .map-overview {
+    flex-grow: 1; /* Ocupa o máximo de espaço disponível */
+    text-align: left;
+}
+
+.map-pool-container h2, .map-overview h2, .sidebar h2 {
+    font-size: 1.8em;
+    color: var(--text-light);
+    margin-bottom: 25px;
+    border-bottom: 2px solid var(--primary-blue);
+    padding-bottom: 10px;
+}
+
+.map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Grid responsivo */
+    gap: 20px;
+    justify-content: center; /* Centraliza os itens no grid */
+}
+
+.map-card {
+    background-color: var(--darker-blue);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden; /* Garante que a imagem fique dentro do border-radius */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Garante que todos os cards tenham a mesma altura */
+    cursor: pointer; /* Cursor de ponteiro por padrão */
+}
+
+/* Remover cursor de ponteiro e efeitos de hover para mapas banidos/escolhidos */
+.map-card.banned,
+.map-card.picked,
+.map-card.final-map {
+    cursor: default;
+}
+
+.map-card.banned:hover,
+.map-card.picked:hover,
+.map-card.final-map:hover {
+    transform: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Volta ao estado normal da sombra */
+}
+
+.map-card img {
+    width: 100%;
+    height: 120px; /* Altura fixa para as imagens dos mapas */
+    object-fit: cover; /* Cobre o espaço sem distorcer */
+    display: block;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.map-card .map-name {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-light);
+    padding: 10px 15px;
+    flex-grow: 1; /* Empurra os botões para baixo */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.map-card .actions {
+    display: flex;
+    width: 100%;
+    border-top: 1px solid var(--border-color);
+}
+
+.map-card .actions button {
+    flex-grow: 1;
+    padding: 12px 0;
+    font-size: 1em;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: white; /* Cor do texto padrão */
+}
+
+.map-card .actions button.veto-btn {
+    background-color: var(--red-veto);
+    border-right: 1px solid rgba(0,0,0,0.2);
+}
+
+.map-card .actions button.pick-btn {
+    background-color: var(--green-pick);
+    border-left: 1px solid rgba(0,0,0,0.2);
+}
+
+.map-card .actions button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Sidebar para Histórico e Mapas Finais */
+.sidebar {
+    width: 350px; /* Largura fixa para a sidebar */
+    flex-shrink: 0; /* Não permite que a sidebar encolha */
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.history-container, .final-maps-container {
+    background-color: var(--darker-blue);
+    border-radius: 8px;
+    padding: 25px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.action-list, .final-list {
+    list-style: none;
+    padding: 0;
+    max-height: 300px; /* Limite de altura para scroll */
+    overflow-y: auto; /* Adiciona scroll se o conteúdo exceder */
+    margin-top: 15px;
+}
+
+.action-list li, .final-list li {
+    background-color: var(--card-bg);
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.action-list li i {
+    font-size: 1.1em;
+    color: var(--primary-blue);
+}
+
+.action-list li.vetoed {
+    background-color: rgba(var(--red-veto-rgb), 0.2); /* Use RGB para RGBA */
+    border-left: 4px solid var(--red-veto);
+}
+
+.action-list li.picked {
+    background-color: rgba(var(--green-pick-rgb), 0.2);
+    border-left: 4px solid var(--green-pick);
+}
+
+/* Mapas finais na lista da sidebar */
+.final-list li {
+    font-weight: bold;
+    color: var(--text-light);
+    background-color: var(--primary-blue);
+    border-left: 4px solid #fff;
+}
+
+
+/* --- Estados dos Map Cards (para Spectator e Equipe) --- */
+
+.map-card.banned {
+    opacity: 0.5;
+    background-color: #3a2e38; /* Fundo mais escuro para banido */
+    border-color: var(--red-veto);
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.4);
+}
+
+.map-card.banned .actions {
+    display: none; /* Esconde os botões se banido */
+}
+
+.map-card.banned .map-name {
+    text-decoration: line-through;
+    color: #bbb;
+}
+
+.map-card.picked {
+    background-color: #31423b; /* Fundo mais claro para escolhido */
+    border-color: var(--green-pick);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.4);
+}
+
+.map-card.picked .actions {
+    display: none; /* Esconde os botões se escolhido */
+}
+
+.map-card.final-map { /* Para os mapas que sobraram no MD1 ou são o desempate */
+    background-color: var(--primary-blue);
+    border-color: #fff;
+    box-shadow: 0 0 20px rgba(26, 115, 232, 0.7);
+    transform: scale(1.05); /* Destaca mais */
+}
+
+.map-card.final-map .map-name {
+    color: white;
+}
+
+
+/* Esconder elementos */
+.hidden {
+    display: none !important; /* !important para garantir que override outros estilos */
+}
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .team-interface-content, .spectator-content {
+        flex-direction: column; /* Empilha colunas em telas menores */
+    }
+
+    .sidebar {
+        width: 100%; /* Sidebar ocupa largura total */
+    }
+
+    .map-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); /* Ajusta grid para telas médias */
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+    }
+
+    .main-header {
+        margin-bottom: 30px;
+    }
+
+    .logo {
+        max-width: 200px;
+    }
+
+    .card {
+        padding: 30px 20px;
+    }
+
+    .card h1 {
+        font-size: 1.8em;
+    }
+
+    .card p {
+        font-size: 1em;
+        margin-bottom: 20px;
+    }
+
+    .format-options {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .format-card {
+        width: 80%; /* Ocupa mais largura em telas menores */
+        max-width: 300px; /* Limite para não ficar muito grande */
+        padding: 20px 30px;
+    }
+
+    .format-card h3 {
+        font-size: 1.5em;
+    }
+
+    .link-item {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        gap: 10px;
+    }
+
+    .link-item label {
+        flex-basis: auto; /* Remover largura fixa */
+    }
+
+    .link-input-group {
+        width: 100%; /* Ocupa a largura total disponível */
+        flex-wrap: nowrap; /* Tenta manter input e botões na mesma linha */
+    }
+
+    .link-input-group input[type="text"] {
+        padding: 10px 12px;
+        font-size: 0.9em;
+    }
+
+    .link-input-group button,
+    .link-input-group .open-link-btn {
+        padding: 10px 12px;
+        font-size: 0.9em;
+    }
+
+    #continue-session-section .button-group {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* Ajustes para interfaces de equipe/espectador em telas menores */
+    .team-interface, .spectator-interface {
+        padding: 25px 15px;
+    }
+
+    .team-interface h1, .spectator-interface h1 {
+        font-size: 2em;
+    }
+
+    .team-interface p, .spectator-interface p {
+        font-size: 1.1em;
+        margin-bottom: 20px;
+    }
+
+    .map-pool-container h2, .map-overview h2, .sidebar h2 {
+        font-size: 1.5em;
+        margin-bottom: 15px;
+    }
+
+    .map-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); /* Mais colunas em telas menores */
+        gap: 15px;
+    }
+
+    .map-card img {
+        height: 100px; /* Reduz altura da imagem do mapa */
+    }
+
+    .map-card .map-name {
+        font-size: 1em;
+        padding: 8px 10px;
+    }
+    
+    .map-card .actions button {
+        padding: 10px 0;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-width: 480px) {
+    .map-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Ainda menores */
+        gap: 10px;
+    }
+
+    .map-card img {
+        height: 80px;
+    }
+    .map-card .map-name {
+        font-size: 0.9em;
+    }
+
+    /* Evita que botões fiquem muito pequenos em telas estreitas */
+    .link-input-group {
+        flex-direction: column; /* Quebra em coluna para telas muito pequenas */
+        align-items: stretch; /* Estica os itens para preencher a largura */
+    }
+    .link-input-group button,
+    .link-input-group .open-link-btn {
+        width: 100%;
+    }
+}
