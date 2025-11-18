@@ -858,7 +858,7 @@ function checkSessionEndAndShowOverlay(sessionData) {
             //"Frozen", 
             "Old Town", 
             "Provence", 
-            //"Western", 
+            "Western", 
             "White Squall"
         ];
         
