@@ -63,14 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
         "Airport": "img/Airport.png",
         "CrossPort": "img/CrossPort.png",
         "City Cat": "img/City Cat.png",
-        //"Depot": "img/Depot.png",
+        "Depot": "img/Depot.png",
         "Desert 2": "img/Desert 2.png",
         "DragonRoad": "img/DragonRoad.png",
         "5th Depot": "img/5th Depot.png",
-        //"Frozen": "img/Frozen.png",
+        "Frozen": "img/Frozen.png",
         "Old Town": "img/Old Town.png",
         "Provence": "img/Provence.png",
-        //"Western": "img/Western.png",
+        "Western": "img/Western.png",
         "White Squall": "img/White Squall.png",
     };
 
@@ -103,7 +103,7 @@ function showFinalOverlay(sessionData) {
 
     // imagem e legenda
     const img = document.createElement('img');
-    img.src = MAP_IMAGES[p.map] || 'img/placeholder.png';
+    img.src = MAP_IMAGES[p.map];
     img.alt = p.map;
     const caption = document.createElement('span');
     caption.textContent = p.map;
@@ -124,7 +124,7 @@ function showFinalOverlay(sessionData) {
     card.append(placeholder);
 
     const img = document.createElement('img');
-    img.src = MAP_IMAGES[sessionData.finalMap] || 'img/placeholder.png';
+    img.src = MAP_IMAGES[sessionData.finalMap];
     img.alt = sessionData.finalMap;
     const caption = document.createElement('span');
     caption.textContent = sessionData.finalMap;
@@ -154,7 +154,7 @@ function buildMapCard(mapName) {
   const item = document.createElement('div');
   item.classList.add('overlay-map-item');
   const img = document.createElement('img');
-  img.src = MAP_IMAGES[mapName] || 'img/placeholder.png';
+  img.src = MAP_IMAGES[mapName];
   img.alt = mapName;
   const caption = document.createElement('span');
   caption.textContent = mapName;
@@ -472,7 +472,7 @@ function checkSessionEndAndShowOverlay(sessionData) {
             }
 
             mapCard.innerHTML = `
-                <img src="${MAP_IMAGES[mapName] || 'img/placeholder.png'}" alt="${mapName}">
+                <img src="${MAP_IMAGES[mapName]}" alt="${mapName}">
                 <div class="map-name">${mapName}</div>
                 <div class="actions">
                     <button class="veto-btn" data-action="veto">VETAR</button>
@@ -541,7 +541,7 @@ function checkSessionEndAndShowOverlay(sessionData) {
             }
 
             mapCard.innerHTML = `
-                <img src="${MAP_IMAGES[mapName] || 'img/placeholder.png'}" alt="${mapName}">
+                <img src="${MAP_IMAGES[mapName]}" alt="${mapName}">
                 <div class="map-name">${mapName}</div>
             `;
             spectatorMapGrid.appendChild(mapCard);
@@ -848,8 +848,18 @@ function checkSessionEndAndShowOverlay(sessionData) {
        
 
         const mapsPool = [
-            "Airport", "CrossPort", "City Cat", "Depot", "Desert 2", "DragonRoad", 
-            "5th Depot", "Frozen", "Old Town", "Provence", "Western", "White Squall"
+            "Airport",
+            "CrossPort", 
+            "City Cat", 
+            //"Depot", 
+            //"Desert 2", 
+            "DragonRoad", 
+            "5th Depot", 
+            //"Frozen", 
+            "Old Town", 
+            "Provence", 
+            //"Western", 
+            "White Squall"
         ];
         
         const sessionData = {
