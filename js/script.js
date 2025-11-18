@@ -63,14 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
         "Airport": "img/Airport.png",
         "CrossPort": "img/CrossPort.png",
         "City Cat": "img/City Cat.png",
-        "Depot": "img/Depot.png",
+        //"Depot": "img/Depot.png",
         "Desert 2": "img/Desert 2.png",
         "DragonRoad": "img/DragonRoad.png",
         "5th Depot": "img/5th Depot.png",
-        "Frozen": "img/Frozen.png",
+        //"Frozen": "img/Frozen.png",
         "Old Town": "img/Old Town.png",
         "Provence": "img/Provence.png",
-        "Western": "img/Western.png",
+        //"Western": "img/Western.png",
         "White Squall": "img/White Squall.png",
     };
 
