@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build-js": "javascript-obfuscator js/script.src.js --output js/script.js",
+    "build-js": "javascript-obfuscator js/script.src.js --output public/js/script.js",
     "build-config": "node build-config.js",
     "build": "npm run build-config && npm run build-js"
   },
@@ -12,4 +12,3 @@
     "javascript-obfuscator": "^4.1.1"
   }
 }
-

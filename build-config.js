@@ -24,7 +24,6 @@ const output = `// Arquivo gerado automaticamente por build-config.js
   window.db = firebase.firestore();
 })();`;
 
-const outputPath = path.join(__dirname, 'js', 'firebase-config.js');
+const outputPath = path.join(__dirname, 'public', 'js', 'firebase-config.js');
 fs.writeFileSync(outputPath, output, 'utf8');
-console.log('Arquivo js/firebase-config.js gerado com sucesso.');
-
+console.log('Arquivo public/js/firebase-config.js gerado com sucesso.');
