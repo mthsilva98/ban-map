@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "Provence": "img/Provence.png",
         "Western": "img/Western.png",
         "White Squall": "img/White Squall.png",
+        "Two Face": "img/Two Face.png"
     };
 
     /**
@@ -852,14 +853,15 @@ function checkSessionEndAndShowOverlay(sessionData) {
             "CrossPort", 
             "City Cat", 
             //"Depot", 
-            "Desert 2", 
+            //"Desert 2", 
             "DragonRoad", 
             "5th Depot", 
             //"Frozen", 
             "Old Town", 
             "Provence", 
-            "Western", 
-            "White Squall"
+            //"Western", 
+            "White Squall",
+            "Two Face"
         ];
         
         const sessionData = {
