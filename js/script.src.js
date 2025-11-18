@@ -848,11 +848,11 @@ function checkSessionEndAndShowOverlay(sessionData) {
        
 
         const mapsPool = [
-            "Airport",
+            //"Airport",
             "CrossPort", 
             "City Cat", 
             //"Depot", 
-            //"Desert 2", 
+            "Desert 2", 
             "DragonRoad", 
             "5th Depot", 
             //"Frozen", 
