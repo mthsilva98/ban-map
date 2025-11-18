@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const JavaScriptObfuscator = require('javascript-obfuscator');
 require('dotenv').config();
 
 const firebaseConfig = {
@@ -17,13 +18,22 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId
   );
 }
 
-const output = `// Arquivo gerado automaticamente por build-config.js
+const sourceCode = `
 (function() {
   var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
   firebase.initializeApp(firebaseConfig);
   window.db = firebase.firestore();
 })();`;
 
+const obfuscated = JavaScriptObfuscator.obfuscate(sourceCode, {
+  compact: true,
+  controlFlowFlattening: true,
+  deadCodeInjection: true,
+  stringArray: true,
+  stringArrayEncoding: ['base64'],
+  stringArrayThreshold: 1
+}).toString();
+
 const outputPath = path.join(__dirname, 'public', 'js', 'firebase-config.js');
-fs.writeFileSync(outputPath, output, 'utf8');
-console.log('Arquivo public/js/firebase-config.js gerado com sucesso.');
+fs.writeFileSync(outputPath, obfuscated, 'utf8');
+
