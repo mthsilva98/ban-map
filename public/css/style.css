@@ -811,3 +811,22 @@ main, .container, body {
   .donation-text strong { font-size: 21px; } /* ++ */
   .donation-text span { font-size: 17px; }   /* ++ */
 }
+
+/* Donation banner: não bloquear cliques fora do conteúdo */
+.donation-banner {
+  pointer-events: none; /* deixa cliques passarem */
+}
+
+.donation-banner .donation-content {
+  pointer-events: auto; /* permite interação apenas dentro do banner */
+}
+
+.donation-banner:hover,
+.donation-content:hover,
+.donation-qr:hover {
+  /* evitar mudanças que causem “pulos” */
+  transform: none;
+  margin: 0;
+  padding: inherit;
+  box-shadow: inherit;
+}
