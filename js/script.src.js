@@ -625,101 +625,101 @@ function checkSessionEndAndShowOverlay(sessionData) {
         const currentBanned = sessionData.bannedMaps.length;
         const remainingMaps = sessionData.maps.filter(map => !sessionData.bannedMaps.includes(map) && !sessionData.pickedMaps.includes(map));
 
-        // MD1 Logic
-        if (sessionData.format === 'md1') {
-            const requiredActions = totalMaps - 1;
+          // MD1 Logic
+          if (sessionData.format === 'md1') {
+              const requiredActions = totalMaps - 1;
+  
+              if (sessionData.vetoHistory.length < requiredActions) {
+                  sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
+                  sessionData.nextAction = 'veto';
+              } else {
+                  sessionData.finalMap = remainingMaps[0];
+                  sessionData.currentTurn = 'finished';
+              }
+          }
+          // MD3 Logic
+          else if (sessionData.format === 'md3') {
+              const totalActions = sessionData.vetoHistory.length;
+              
+              if (totalActions === 1) { // A vetou 1
+                  sessionData.currentTurn = 'teamB';
+                  sessionData.nextAction = 'veto';
+              } else if (totalActions === 2) { // B vetou 1
+                  sessionData.currentTurn = 'teamA';
+                  sessionData.nextAction = 'pick';
+              } else if (totalActions === 3) { // A escolheu 1
+                  sessionData.currentTurn = 'teamB';
+                  sessionData.nextAction = 'pick';
+              } else if (totalActions === 4) { // B escolheu 1
+                  const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1; 
+                  if (sessionData.bannedMaps.length < neededBansAfterPicks) {
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'veto';
+                  } else {
+                      sessionData.finalMap = remainingMaps[0];
+                      sessionData.currentTurn = 'finished';
+                  }
+              } else if (sessionData.currentTurn !== 'finished') {
+                  const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1;
+                  if (sessionData.bannedMaps.length < neededBansAfterPicks) {
+                      sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
+                      sessionData.nextAction = 'veto';
+                  } else {
+                      sessionData.finalMap = remainingMaps[0];
+                      sessionData.currentTurn = 'finished';
+                  }
+              }
+          }
+          // MD5 Logic (novo fluxo)
+          else if (sessionData.format === 'md5') {
+              const targetFinalMaps = 5;
+              const targetPicks = 4;
+              const targetBans = totalMaps - targetFinalMaps;
 
-            if (sessionData.vetoHistory.length < requiredActions) {
-                sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
-                sessionData.nextAction = 'veto';
-            } else {
-                sessionData.finalMap = remainingMaps[0];
-                sessionData.currentTurn = 'finished';
-            }
-        }
-        // MD3 Logic
-        else if (sessionData.format === 'md3') {
-            const totalActions = sessionData.vetoHistory.length;
-            
-            if (totalActions === 1) { // A vetou 1
-                sessionData.currentTurn = 'teamB';
-                sessionData.nextAction = 'veto';
-            } else if (totalActions === 2) { // B vetou 1
-                sessionData.currentTurn = 'teamA';
-                sessionData.nextAction = 'pick';
-            } else if (totalActions === 3) { // A escolheu 1
-                sessionData.currentTurn = 'teamB';
-                sessionData.nextAction = 'pick';
-            } else if (totalActions === 4) { // B escolheu 1
-                const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1; 
-                if (sessionData.bannedMaps.length < neededBansAfterPicks) {
-                    sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'veto';
-                } else {
-                    sessionData.finalMap = remainingMaps[0];
-                    sessionData.currentTurn = 'finished';
-                }
-            } else if (sessionData.currentTurn !== 'finished') {
-                const neededBansAfterPicks = totalMaps - sessionData.pickedMaps.length - 1;
-                if (sessionData.bannedMaps.length < neededBansAfterPicks) {
-                    sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
-                    sessionData.nextAction = 'veto';
-                } else {
-                    sessionData.finalMap = remainingMaps[0];
-                    sessionData.currentTurn = 'finished';
-                }
-            }
-        }
+              if (sessionData.currentTurn === 'finished') {
+                  return;
+              }
+
+              const aPicks = sessionData.teamAPickCount || 0;
+              const bPicks = sessionData.teamBPickCount || 0;
+              const totalPicks = aPicks + bPicks;
+              const currentBans = sessionData.bannedMaps.length;
+
+              // 1) Dois vetos iniciais (A depois B)
+              if (currentBans < 2 && totalPicks === 0) {
+                  if (currentBans === 1) {
+                      sessionData.currentTurn = 'teamB';
+                      sessionData.nextAction = 'veto';
+                  }
+                  // Se currentBans === 0, o estado inicial (teamA/veto) já está correto
+              }
+              // 2) Picks até 4 mapas escolhidos (2 por time)
+              else if (totalPicks < targetPicks) {
+                  if (aPicks <= bPicks && aPicks < 2) {
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'pick';
+                  } else if (bPicks < 2) {
+                      sessionData.currentTurn = 'teamB';
+                      sessionData.nextAction = 'pick';
+                  } else {
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'pick';
+                  }
+              }
+              // 3) Vetos finais alternados até sobrar 1 mapa (5 mapas finais)
+              else {
+                  const targetBansTotal = targetBans;
+                  if (currentBans < targetBansTotal && remainingMaps.length > 1) {
+                      sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
+                      sessionData.nextAction = 'veto';
+                  } else if (remainingMaps.length === 1) {
+                      sessionData.finalMap = remainingMaps[0];
+                      sessionData.currentTurn = 'finished';
+                  }
+              }
+          }
         // MD5 Logic (CORRIGIDA DE NOVO)
-        else if (sessionData.format === 'md5') {
-            const totalActionsSoFar = sessionData.vetoHistory.length;
-
-            if (sessionData.currentTurn === 'finished') {
-                return; // Sessão já finalizada, não faz mais nada.
-            }
-
-            switch (totalActionsSoFar) {
-                case 0: // 1ª Ação: Equipe A VETA
-                    sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'pick';
-                    break;
-                case 1: // 2ª Ação: Equipe B VETA
-                    sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'pick';
-                    break;
-                case 2: // 3ª Ação: Equipe A ESCOLHE (1ª de A)
-                    sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'veto';
-                    break;
-                case 3: // 4ª Ação: Equipe B ESCOLHE (1ª de B)
-                    sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'veto';
-                    break;
-                case 4: // 5ª Ação: Equipe A VETA (2ª de A)
-                    sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'pick';
-                    break;
-                case 5: // 6ª Ação: Equipe B VETA (2ª de B)
-                    sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'pick';
-                    break;
-                case 6: // 7ª Ação: Equipe A ESCOLHE (2ª de A)
-                    sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'veto';
-                    break;
-                
-                default: // Do 9º passo em diante, são apenas vetos alternados
-                    const finalBansRemaining = totalMaps - 5 - sessionData.bannedMaps.length;
-                    if (finalBansRemaining > 0) {
-                        sessionData.currentTurn = sessionData.currentTurn === 'teamA' ? 'teamB' : 'teamA';
-                        sessionData.nextAction = 'veto';
-                    } else {
-                        sessionData.finalMap = remainingMaps[0];
-                        sessionData.currentTurn = 'finished';
-                    }
-                    break;
-            }
-        }
+          
         
         // Lógica de finalização genérica como fallback
         // Verifica se sobrou apenas um mapa e se o número de picks esperados para o formato já foi atingido.
