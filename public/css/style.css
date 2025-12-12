@@ -768,65 +768,58 @@ body:has(#spectator-section:not(.hidden)) .main-content {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 0;            /* fixo no rodapé */
   z-index: 10000;
   background: #0f0f10;
   color: #fff;
   border-top: 2px solid #2a2a2a;
   box-shadow: 0 -10px 28px rgba(0,0,0,0.4);
+  pointer-events: none; /* não bloquear cliques fora do conteúdo */
 }
-.donation-content {
+
+/* Conteúdo interativo apenas dentro do banner */
+.donation-banner .donation-content {
+  pointer-events: auto;
   max-width: 1280px;
   margin: 0 auto;
   padding: 22px 18px;
   display: flex;
   align-items: center;
   gap: 20px;
+  min-height: 180px;    /* fixa altura mínima para não variar */
 }
-.donation-qr {
+
+/* QR sem hover/animacao */
+.donation-banner .donation-qr {
   width: 140px;
   height: 140px;
   object-fit: contain;
   border-radius: 12px;
   background: #fff;
   padding: 10px;
-}
-.donation-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.35;
-}
-.donation-text strong { font-size: 22px; font-weight: 800; } /* ++ */
-.donation-text span { font-size: 18px; opacity: 0.96; }      /* ++ */
-
-/* Reserve more space so banner never overlaps content */
-main, .container, body {
-  padding-bottom: 200px;
+  transition: none !important;
+  transform: none !important;
 }
 
-/* Mobile */
+/* Neutraliza QUALQUER regra global de hover dentro do banner */
+.donation-banner img:hover,
+.donation-banner .donation-qr:hover,
+.donation-banner .donation-content:hover {
+  transform: none !important;
+  scale: 1 !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* Texto maior */
+.donation-banner .donation-text strong { font-size: 22px; font-weight: 800; }
+.donation-banner .donation-text span   { font-size: 18px; opacity: 0.96; }
+
+/* Espaço inferior do conteúdo para não cobrir botões */
+body { padding-bottom: 200px; }
 @media (max-width: 520px) {
-  .donation-content { padding: 18px 14px; gap: 16px; }
-  .donation-qr { width: 120px; height: 120px; padding: 8px; }
-  .donation-text strong { font-size: 21px; } /* ++ */
-  .donation-text span { font-size: 17px; }   /* ++ */
-}
-
-/* Donation banner: não bloquear cliques fora do conteúdo */
-.donation-banner {
-  pointer-events: none; /* deixa cliques passarem */
-}
-
-.donation-banner .donation-content {
-  pointer-events: auto; /* permite interação apenas dentro do banner */
-}
-
-.donation-banner:hover,
-.donation-content:hover,
-.donation-qr:hover {
-  /* evitar mudanças que causem “pulos” */
-  transform: none;
-  margin: 0;
-  padding: inherit;
-  box-shadow: inherit;
+  .donation-banner .donation-content { min-height: 160px; padding: 18px 14px; gap: 16px; }
+  .donation-banner .donation-qr { width: 120px; height: 120px; padding: 8px; }
+  .donation-banner .donation-text strong { font-size: 21px; }
+  .donation-banner .donation-text span { font-size: 17px; }
 }
