@@ -948,3 +948,19 @@ function checkSessionEndAndShowOverlay(sessionData) {
     // --- Inicialização ---
     updateUI(false);
 });
+
+function processNextTurn() {
+  // Nova lógica MD5: escolhe, escolhe, veta, veta, escolhe, escolhe, veta (ciclo de 7)
+  const md5Sequence = ['choose', 'choose', 'veto', 'veto', 'choose', 'choose', 'veto'];
+  const nextIndex = (vetoHistory.length) % md5Sequence.length;
+  const expectedAction = md5Sequence[nextIndex];
+
+  // Atualiza estado esperado para uso pelo restante do código/UI
+  sessionData.expectedAction = expectedAction; // "choose" ou "veto"
+  sessionData.isVetoTurn = expectedAction === 'veto';
+
+  // Ajuste de instruções na UI — garante que a UI passe a refletir a nova regra
+  if (typeof updateUI === 'function') {
+    updateUI();
+  }
+}

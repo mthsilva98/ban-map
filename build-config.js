@@ -12,28 +12,32 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
-  throw new Error(
-    'Faltam variáveis de ambiente do Firebase. Verifique seu arquivo .env (API key, projectId e appId são obrigatórios).'
-  );
+const required = ['API_KEY', 'PROJECT_ID', 'APP_ID'];
+const missing = required.filter(k => !process.env[k]);
+
+if (missing.length) {
+  console.warn('Aviso: Variáveis de ambiente do Firebase ausentes:', missing.join(', '));
+  // opcional: preencher valores placeholders para não quebrar o build
+  // process.env.API_KEY = process.env.API_KEY || 'PLACEHOLDER_API_KEY';
+  // ...
+} else {
+  const sourceCode = `
+  (function() {
+    var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
+    firebase.initializeApp(firebaseConfig);
+    window.db = firebase.firestore();
+  })();`;
+
+  const obfuscated = JavaScriptObfuscator.obfuscate(sourceCode, {
+    compact: true,
+    controlFlowFlattening: true,
+    deadCodeInjection: true,
+    stringArray: true,
+    stringArrayEncoding: ['base64'],
+    stringArrayThreshold: 1
+  }).toString();
+
+  const outputPath = path.join(__dirname, 'public', 'js', 'firebase-config.js');
+  fs.writeFileSync(outputPath, obfuscated, 'utf8');
 }
-
-const sourceCode = `
-(function() {
-  var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
-  firebase.initializeApp(firebaseConfig);
-  window.db = firebase.firestore();
-})();`;
-
-const obfuscated = JavaScriptObfuscator.obfuscate(sourceCode, {
-  compact: true,
-  controlFlowFlattening: true,
-  deadCodeInjection: true,
-  stringArray: true,
-  stringArrayEncoding: ['base64'],
-  stringArrayThreshold: 1
-}).toString();
-
-const outputPath = path.join(__dirname, 'public', 'js', 'firebase-config.js');
-fs.writeFileSync(outputPath, obfuscated, 'utf8');
 
