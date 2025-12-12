@@ -625,6 +625,48 @@ function checkSessionEndAndShowOverlay(sessionData) {
         const currentBanned = sessionData.bannedMaps.length;
         const remainingMaps = sessionData.maps.filter(map => !sessionData.bannedMaps.includes(map) && !sessionData.pickedMaps.includes(map));
 
+          // MD5 Logic (sequência MD5: pick, pick, veto, veto, pick, pick, veto)
+          if (sessionData.format === 'md5') {
+              const totalActions = sessionData.vetoHistory.length;
+
+              if (sessionData.currentTurn === 'finished') {
+                  return;
+              }
+
+              switch (totalActions) {
+                  case 0: // A PICK
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'pick';
+                      break;
+                  case 1: // B PICK
+                      sessionData.currentTurn = 'teamB';
+                      sessionData.nextAction = 'pick';
+                      break;
+                  case 2: // A VETO
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'veto';
+                      break;
+                  case 3: // B VETO
+                      sessionData.currentTurn = 'teamB';
+                      sessionData.nextAction = 'veto';
+                      break;
+                  case 4: // A PICK
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'pick';
+                      break;
+                  case 5: // B PICK
+                      sessionData.currentTurn = 'teamB';
+                      sessionData.nextAction = 'pick';
+                      break;
+                  case 6: // A VETO final
+                      sessionData.currentTurn = 'teamA';
+                      sessionData.nextAction = 'veto';
+                      break;
+                  default:
+                      break;
+              }
+          }
+
           // MD1 Logic
           if (sessionData.format === 'md1') {
               const requiredActions = totalMaps - 1;
@@ -670,8 +712,8 @@ function checkSessionEndAndShowOverlay(sessionData) {
                   }
               }
           }
-          // MD5 Logic (novo fluxo)
-          else if (sessionData.format === 'md5') {
+          // MD5 Logic (novo fluxo) - desativado, mantido apenas como referência
+          else if (false && sessionData.format === 'md5') {
               const targetFinalMaps = 5;
               const targetPicks = 4;
               const targetBans = totalMaps - targetFinalMaps;
@@ -866,7 +908,7 @@ function checkSessionEndAndShowOverlay(sessionData) {
             finalMap: null,
             vetoHistory: [],
             currentTurn: 'teamA',
-            nextAction: 'veto',
+            nextAction: selectedFormat === 'md5' ? 'pick' : 'veto',
             teamAPickCount: 0,
             teamBPickCount: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
