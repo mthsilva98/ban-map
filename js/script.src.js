@@ -681,40 +681,33 @@ function checkSessionEndAndShowOverlay(sessionData) {
             switch (totalActionsSoFar) {
                 case 0: // 1ª Ação: Equipe A VETA
                     sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'veto';
+                    sessionData.nextAction = 'pick';
                     break;
                 case 1: // 2ª Ação: Equipe B VETA
                     sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'veto';
+                    sessionData.nextAction = 'pick';
                     break;
                 case 2: // 3ª Ação: Equipe A ESCOLHE (1ª de A)
                     sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'pick';
+                    sessionData.nextAction = 'veto';
                     break;
                 case 3: // 4ª Ação: Equipe B ESCOLHE (1ª de B)
                     sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'pick';
+                    sessionData.nextAction = 'veto';
                     break;
                 case 4: // 5ª Ação: Equipe A VETA (2ª de A)
                     sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'veto';
+                    sessionData.nextAction = 'pick';
                     break;
                 case 5: // 6ª Ação: Equipe B VETA (2ª de B)
                     sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'veto';
+                    sessionData.nextAction = 'pick';
                     break;
                 case 6: // 7ª Ação: Equipe A ESCOLHE (2ª de A)
                     sessionData.currentTurn = 'teamA';
-                    sessionData.nextAction = 'pick';
+                    sessionData.nextAction = 'veto';
                     break;
-                case 7:
-                     
-                    sessionData.currentTurn = 'teamB';
-                    sessionData.nextAction = 'pick'; 
-                 
-
-                    
-                    break;
+                
                 default: // Do 9º passo em diante, são apenas vetos alternados
                     const finalBansRemaining = totalMaps - 5 - sessionData.bannedMaps.length;
                     if (finalBansRemaining > 0) {
@@ -948,19 +941,3 @@ function checkSessionEndAndShowOverlay(sessionData) {
     // --- Inicialização ---
     updateUI(false);
 });
-
-function processNextTurn() {
-  // Nova lógica MD5: escolhe, escolhe, veta, veta, escolhe, escolhe, veta (ciclo de 7)
-  const md5Sequence = ['choose', 'choose', 'veto', 'veto', 'choose', 'choose', 'veto'];
-  const nextIndex = (vetoHistory.length) % md5Sequence.length;
-  const expectedAction = md5Sequence[nextIndex];
-
-  // Atualiza estado esperado para uso pelo restante do código/UI
-  sessionData.expectedAction = expectedAction; // "choose" ou "veto"
-  sessionData.isVetoTurn = expectedAction === 'veto';
-
-  // Ajuste de instruções na UI — garante que a UI passe a refletir a nova regra
-  if (typeof updateUI === 'function') {
-    updateUI();
-  }
-}
